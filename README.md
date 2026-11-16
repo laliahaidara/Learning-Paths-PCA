@@ -20,8 +20,11 @@ real_instances.py         # real, anonymized instances built from real_data/*.cs
 real_data/                # anonymized module/topic data from an adaptive-learning platform
 experiment.py             # main experiments: test instance + 9 experiment blocks
 experiment_validation.py  # checks our algorithms against OR-Tools, SciPy and NumPy
+tests/                    # unit tests that pin the report's worked example (6 modules, T = 10)
+requirements.txt          # matplotlib (+ ortools, scipy, numpy only for the validation)
 results/                  # CSVs, plots (PNG) and the full output of one run
-report/                   # the paper: report.pdf (final), report.tex + sections/ (editable LaTeX source),
+report/                   # the paper (English, IEEE-style): report.pdf (final), report.tex + sections/ (LaTeX source),
+                          # relatorio-final-atualizado.docx/.tex = Portuguese reading version of the report,
                           # figures/, make_tables.py (regenerates the tables from results/*.csv)
 ```
 
@@ -37,7 +40,7 @@ Run these from the project root (the folder containing this README):
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install matplotlib ortools scipy numpy
+pip install -r requirements.txt
 ```
 If you only want the main experiments, `pip install matplotlib` is enough.
 
@@ -63,6 +66,14 @@ python experiment.py --quick --only scale       # flags can be combined
 
 Output goes to `results/` (CSV files and `fig_*.png` plots); progress is printed to the terminal.
 To keep a log like `results/full_output.txt`: `python experiment.py | tee results/full_output.txt`.
+
+### 3b. Unit tests — the worked example
+```bash
+python -m unittest discover -s tests -v
+```
+They check the DP table, the chosen modules (Python Basics + Data Structures, 91 points), the
+greedy result (77 points, a 15.4% gap) and the adversarial instance. If a number changes, the
+"Test instance" section of the report has to change too.
 
 ### 4. Validation against external libraries — `experiment_validation.py`
 ```bash
@@ -97,7 +108,16 @@ Member names are on the cover page and in the Members section of `report/report.
 > overwrites the tables in `report/sections/`. Commit or back up anything you want to keep first.
 > Timing numbers will differ from machine to machine.
 
-## Note
-Understand and rewrite the code with your own structure and naming before submitting
-(automatic plagiarism checker), and every group member must be able to explain every file.
-Check the course policy on AI tools and disclose its use if required.
+## Team and authorship
+Lalia Sadio, Adriana Souza, Leandro Bergmann and Dalila Rezende. Lalia proposed the topic.
+Lalia and Leandro built the algorithms and the experiments; Adriana and Dalila wrote the
+theoretical background (Dalila used the Sebrae learning platform as her basis); every other
+task was done by all four and reviewed together, and each member can explain every file.
+The same division is described in the Members section of the report.
+
+## Use of AI tools
+Claude (Anthropic) was used as an assistant: English review of the report, review of the
+code (an edge-case fix in `grasp.py` for `alpha = 0`, comments/docstrings, formatting, the unit
+test of the worked example) and drafts of the presentation material. The group reviewed and
+validated every change by re-running the experiments (identical values and operation counts
+before and after). The use of AI is also disclosed in the report.

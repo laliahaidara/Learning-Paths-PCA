@@ -8,6 +8,38 @@ A learning path is the implementation of a curriculum design: a set of learning 
 
 When modules have prerequisites, the feasible selections form a structure over a directed acyclic graph (DAG). The corresponding optimization problem is the \emph{precedence-constrained knapsack problem} (PCKP), in which a module can be adopted only if all its predecessors are in the knapsack \cite{samphaiboon2000}. PCKP is NP-hard because it contains the plain knapsack as the special case without precedence, and dynamic programming algorithms for it are known to solve small instances to optimality \cite{samphaiboon2000}. Ignoring prerequisites therefore yields a strictly simpler problem whose structure is completely understood, and which is the subject of this work. The graph search of RUTICO itself is represented in our code by \code{graph\_dfs.py}.
 
+\subsection{Recent related work}\label{sec:related}
+
+This subsection places the problem studied here among recent work (2017--2026). Table~\ref{tab:related} summarizes the positioning and the paragraphs below discuss each group. The review is targeted, not systematic: we did not re-implement the cited methods, so the comparison with them is conceptual.
+
+\begin{table}[h]
+\centering
+\caption{Positioning of recent related work relative to this study.}\label{tab:related}
+\footnotesize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{3.7cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+Work & Problem and method & Relation to this study\\
+\midrule
+Nabizadeh et al.\ \cite{nabizadeh2017rutico,nabizadeh2019uncertainty,nabizadeh2020auxiliary} & Paths under a time limit; DFS enumeration; time and score estimation & Starting point; we study the selection step (DP versus DFS)\\
+Bose and Thomas \cite{bose2026learnopt} & Knapsack-style study planning with prerequisites; CP-SAT & Same structure with precedence; ours relaxes precedence and measures the algorithms\\
+Mehrabi et al.\ \cite{mehrabi2025evidence} & Binary integer program; greedy, gradient-based and hybrid solvers & The exact-versus-greedy trade-off appears in both\\
+Lv et al.\ \cite{lv2025genal}; Yang et al.\ \cite{yang2026forgetting}; Soekamto et al.\ \cite{soekamto2025skyrag} & LLM agents; forgetting-curve model; retrieval-based path generation & Complementary: they can produce the scores that the knapsack consumes\\
+Cygan et al.\ \cite{cygan2019minconv}; Bringmann \cite{bringmann2024small}; Jin \cite{jin2024knapsack}; Mao \cite{mao2024fptas} & Fine-grained complexity and faster knapsack algorithms & Explain why $\Theta(nT)$ is hard to improve in general; not needed at our scale\\
+Feo and Resende \cite{feo1995grasp}; Mendes et al.\ \cite{mendes2022mascloud,mendes2024mascloud} & GRASP; multi-agent cloud management with three reasoning models & Source of the GRASP experiment (Section~\ref{sec:grasp})\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Learning paths under time constraints.} RUTICO \cite{nabizadeh2017rutico} locates the learner in a course graph, uses a DFS to enumerate all the paths that fit the time limit, estimates the time and the score of each path and recommends the path with the highest score. Two later works of the same research line keep this logic. Nabizadeh, Jorge and Leal \cite{nabizadeh2019uncertainty} add an estimate of the probability of error of the time and score of each path and recommend the path that satisfies the time restriction while maximizing the expected score, evaluating the estimators on two e-learning datasets. Nabizadeh et al.\ \cite{nabizadeh2020auxiliary} use a two-layered course graph (lessons and learning objects) and recommend auxiliary learning objects when the learner does not reach the estimated score in a lesson; they evaluated the approach in a live environment. In these works the research effort goes to estimating time and score, and the path selection is done by DFS enumeration. Our work is complementary: we take the selection step in isolation and ask what it costs and which technique is best suited to it.
+
+\paragraph{Study planning as constrained optimization.} Two recent preprints formulate study planning explicitly as an optimization problem under a budget. Bose and Thomas \cite{bose2026learnopt} treat study planning for standardized examinations as a knapsack-style problem over prerequisite-respecting subgraphs of a concept graph: the value of a subgraph depends on topic relevance, remaining mastery and the weight of the cognitive skill tested, and its cost is the effort needed to close the mastery gap. They solve it with the CP-SAT solver of OR-Tools and solve it again after each study session, as Bayesian Knowledge Tracing updates the mastery estimates. Mehrabi et al.\ \cite{mehrabi2025evidence} cast the assignment of learning interventions as a binary integer program with constraints on skill coverage, time and count budgets, difficulty windows, prerequisites and redundancy, and solve it with a greedy heuristic for resource-scarce, low-latency settings, a gradient-based relaxation for rich content repositories, and a hybrid of the two. Both works confirm that the knapsack structure appears naturally in this domain, and both include precedence constraints, which our relaxed model leaves out (Section~\ref{sec:decisions}). Our contribution has a different focus: instead of proposing a recommender, we measure, with machine-independent operation counters and real platform data, what each classical technique costs and how far a greedy rule falls from the optimum.
+
+\paragraph{Recommenders based on learner models and language models.} A different line treats learning-path recommendation as a sequential decision problem driven by learner data. Yang et al.\ \cite{yang2026forgetting} propose a goal-oriented learning-path recommendation that incorporates the forgetting curve. Lv et al.\ \cite{lv2025genal} present GenAL, an agent framework based on large language models in which a global agent maintains the learner profile and a local agent recommends the next items, evaluated on three real-world datasets. Soekamto et al.\ \cite{soekamto2025skyrag} propose SKYRAG, which generates learning paths from keyword-based document retrieval. These works concentrate on modeling the learner and on generating or retrieving content. They are complementary to ours: any score they produce, such as an estimated gain or mastery, can serve as the value of a module in the knapsack solved here.
+
+\paragraph{Recent results on the knapsack problem.} On the algorithmic side, the 0/1 knapsack problem has seen recent theoretical progress. Cygan et al.\ \cite{cygan2019minconv} showed that knapsack variants are equivalent, under subquadratic reductions, to $(\min,+)$-convolution, which helps explain why the classical quadratic dynamic programming has resisted improvement. Bringmann \cite{bringmann2024small} and Jin \cite{jin2024knapsack} obtained, concurrently, algorithms with running time $\tilde{\bigO}(n+w_{\max}^2)$, where $w_{\max}$ is the largest item weight; this is conditionally near-optimal, since an $\bigO((n+w_{\max})^{2-\delta})$ algorithm would contradict the $(\min,+)$-convolution hypothesis. For approximation, Mao \cite{mao2024fptas} gave a deterministic $(1-\varepsilon)$-approximation scheme running in $\tilde{\bigO}(n+(1/\varepsilon)^2)$. These results replace the dependence on the budget $T$ by the maximum item weight. In our setting, where modules last at most a few hours, $n$ is at most in the hundreds and times are integers in minutes, the classical $\Theta(nT)$ dynamic program already runs in milliseconds (Section~\ref{sec:real}), so we do not adopt these more elaborate algorithms; we note them as the natural next step if $T$ or $n$ grew by orders of magnitude.
+
+\paragraph{Metaheuristics.} The GRASP metaheuristic \cite{feo1995grasp} builds solutions with a randomized greedy rule and improves them by local search. We adapt it from MAS-Cloud+ \cite{mendes2024mascloud}, an agent architecture from the group of Prof.\ Marotta that provisions cloud resources using three reasoning models (heuristic, formal optimization and metaheuristic); the adaptation is reported in Section~\ref{sec:grasp}.
+
 \subsection{The 0/1 knapsack problem}\label{sec:knapsack}
 
 Definition~\ref{def:lps} can be written as the integer linear program
@@ -54,6 +86,10 @@ Horowitz and Sahni showed how to solve the knapsack problem in $\bigO(2^{n/2})$ 
 
 A \emph{fully polynomial-time approximation scheme} (FPTAS) returns, for any $\varepsilon>0$, a solution of value at least $(1-\varepsilon)\,\OPT$ in time polynomial in both $n$ and $1/\varepsilon$ \cite{vazirani2001,williamson2011}. The knapsack problem admits an FPTAS, obtained by scaling down the values and solving the scaled instance exactly with a dynamic program over the \emph{profit} \cite{ibarra1975,lawler1979}. It trades exactness for independence from $T$ (\code{fptas.py}).
 
+\subsubsection{Metaheuristics: GRASP}
+
+A metaheuristic offers no optimality guarantee but explores large search spaces at a controlled cost. GRASP (Greedy Randomized Adaptive Search Procedure) \cite{feo1995grasp} repeats two phases and keeps the best solution found: a randomized greedy \emph{construction}, which draws each element from a restricted candidate list of the best candidates instead of always taking the best one, and a \emph{local search} that improves the constructed solution until no improving move exists. For the knapsack problem, the construction ranks the modules by ratio and the local search inserts modules that fit or swaps a selected module for an outside one of higher score. GRASP is the metaheuristic of the MAS-Cloud+ architecture \cite{mendes2024mascloud}, which motivates the experiment of Section~\ref{sec:grasp}.
+
 \subsection{Fundamentals of complexity analysis}
 
 We use the asymptotic notation $\bigO$, $\Omega$ and $\Theta$ \cite{cormen2022}. The \emph{best case} and the \emph{worst case} of an algorithm are the minimum and the maximum running time over all inputs of a given size $n$; the \emph{average case} is the expected running time under an input distribution, which is rarely available in closed form. For this reason we complement the analytical best and worst cases with an \emph{empirical} average case measured on random instances. Two parameters describe the input size of our problem: the number of modules $n$ and the budget $T$; the algorithms studied depend on $n$ alone, on $n$ and $T$, or on $n$ and the instance structure.
@@ -84,7 +120,9 @@ Divide and conquer (merge sort) & \code{sorting.py} (\code{merge\_sort}) & $\The
 Branch and Bound with Dantzig bound & \code{branch\_and\_bound.py} & $\bigO(n2^n)$\\
 Meet-in-the-Middle & \code{meet\_in\_the\_middle.py} & $\bigO(2^{n/2})$\\
 FPTAS & \code{fptas.py} & $\bigO(n^3/\varepsilon)$\\
+Metaheuristic (GRASP) & \code{grasp.py} & $\bigO(n\log n+I(n+V)n^2)$\\
 Instance families & \code{instances.py} & ---\\
+Real platform instances & \code{real\_instances.py} & ---\\
 \bottomrule
 \end{tabularx}
 \end{table}

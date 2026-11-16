@@ -2,7 +2,7 @@
 
 \subsection{Environment and architecture}
 
-The prototype is written in Python (the reported experiments ran on Python 3.12; version 3.10 or newer is required) using only the standard library; the matplotlib library is used exclusively to draw the plots of Section~\ref{sec:experiments} and does not take part in any algorithm. Even the sorting routine is hand-written. The code runs on Linux with a single command (Appendix~\ref{app:run}). Its organization follows the two files requested by the assignment: the \emph{Algorithm} files and the \emph{Experiment} file.
+The prototype is written in Python (the reported experiments ran on Python 3.12; version 3.10 or newer is required) using only the standard library; the matplotlib library is used exclusively to draw the plots of Section~\ref{sec:experiments}, and OR-Tools, SciPy and NumPy are used exclusively by the validation script of Section~\ref{sec:validation} as external oracles; none of them takes part in any algorithm. Even the sorting routine is hand-written. The code runs on Linux with a single command (Appendix~\ref{app:run}). Its organization follows the two files requested by the assignment: the \emph{Algorithm} files and the \emph{Experiment} file.
 
 \begin{table}[h]
 \centering
@@ -21,8 +21,12 @@ File & Content\\
 \code{algorithms/branch\_and\_bound.py} & \code{branch\_and\_bound}\\
 \code{algorithms/meet\_in\_the\_middle.py} & \code{meet\_in\_the\_middle}\\
 \code{algorithms/fptas.py} & \code{fptas}\\
+\code{algorithms/grasp.py} & \code{grasp}: randomized greedy construction plus local search (complementary experiment)\\
 \code{instances.py} & \code{generate\_instance}: the three instance families, reproducible by seed\\
+\code{real\_instances.py}, \code{real\_data/} & Loader of the anonymized GuIA instances (modules and topics) and the anonymized CSV files\\
 \code{experiment.py} & \textbf{Experiment file}: the test instance and nine blocks of experiments (command-line selectable)\\
+\code{experiment\_real.py}, \code{experiment\_grasp.py} & Real-data experiments (Section~\ref{sec:real}) and the GRASP experiment (Section~\ref{sec:grasp})\\
+\code{experiment\_validation.py} & Validation against OR-Tools, SciPy/HiGHS and NumPy (Section~\ref{sec:validation})\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -46,6 +50,7 @@ Algorithm & Counted operations\\
 \code{branch\_and\_bound} & nodes visited, plus steps spent computing upper bounds, plus sort comparisons\\
 \code{meet\_in\_the\_middle} & subset entries generated, merge comparisons and pointer steps\\
 \code{fptas} & cells of the profit table\\
+\code{grasp} & sort comparisons, feasibility tests of the construction and candidates evaluated by the local search\\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -186,10 +191,30 @@ $s^*\leftarrow\max\{s : W[n][s]\le T\}$;\quad reconstruct the modules as in Algo
 \Return the selected modules and the sum of their \emph{original} scores\;
 \end{algorithm}
 
+\begin{algorithm}[htbp]
+\caption{GRASP (\code{grasp})}\label{alg:grasp}
+\KwIn{modules $(w_i,v_i)$; budget $T$; iterations $I$; seed}
+\KwOut{a feasible selection $best$ (no optimality guarantee)}
+sort the modules by ratio $v_i/w_i$ with merge sort;\quad $best\leftarrow\emptyset$\;
+\For{$r\leftarrow1$ \KwTo $I$}{
+  draw $\alpha$ uniformly in $[0.15,\,0.9]$;\quad $S\leftarrow\emptyset$\;
+  \While{some module outside $S$ fits in the remaining time}{
+    $F\leftarrow$ modules outside $S$ that fit, in ratio order\;
+    draw $j$ uniformly among the first $\lceil\alpha|F|\rceil$ elements of $F$;\quad $S\leftarrow S\cup\{j\}$\;
+  }
+  \Repeat{no move was applied in the last pass}{
+    \textsc{Add}: insert every module outside $S$ that fits\;
+    \textsc{Swap}: replace a module of $S$ by an outside module of strictly higher score when the result fits\;
+  }
+  \lIf{$v(S)>v(best)$}{$best\leftarrow S$}
+}
+\Return $best$\;
+\end{algorithm}
+
 \FloatBarrier
 \subsection{Test instance}\label{sec:testinstance}
 
-The test instance models a learner with a budget of $T=10$ hours choosing among six modules (Table~\ref{tab:instance}). It is defined in \code{test\_instance()} and executed by the block \code{demo} of \code{experiment.py}.
+The test instance models a learner with a budget of $T=10$ hours choosing among six modules (Table~\ref{tab:instance}). It is defined in \code{test\_instance()} and executed by the block \code{demo} of \code{experiment.py}. The unit test \code{tests/test\_worked\_example.py} checks the table, the selected modules and the values below against the code.
 
 \begin{table}[h]
 \centering

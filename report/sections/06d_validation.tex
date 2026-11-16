@@ -1,0 +1,40 @@
+\section{Independent Validation with Libraries}\label{sec:validation}
+
+The previous experiments compare the group's algorithms with each other, so an error common to all of them would go unnoticed. To obtain an external reference we repeated the checks with established libraries, which are used \emph{only} for validation and play no role in any algorithm (the assignment forbids importing a library that performs the whole algorithm): OR-Tools 9.15 \cite{ortools2026} and SciPy 1.18 \cite{virtanen2020scipy}, the latter with the HiGHS integer-programming solver \cite{huangfu2018highs}, as oracles of the optimal value; NumPy 2.5 \cite{harris2020numpy} and SciPy for the Pearson correlation; and Python's \code{sorted} for sorting. Everything is reproduced by \code{experiment\_validation.py} (blocks \code{optimum}, \code{guarantees}, \code{sorting}, \code{pearson}, \code{runtime} and \code{bnb}).
+
+\subsection{Optimal value}
+
+On 3,533 instances no exact algorithm of the group diverged from the libraries (Table~\ref{tab:divergences}), and the two libraries agreed with each other on all of them. With its default tolerance, HiGHS stopped one point short of the optimum on 5 topic instances; with zero tolerance (\code{mip\_rel\_gap=0}) the difference disappeared.
+
+\begin{table}[h]
+\centering
+\caption{Divergences between the group's exact algorithms and the reference libraries.}\label{tab:divergences}
+\small
+\begin{tabularx}{\linewidth}{@{}l r X r@{}}
+\toprule
+Set & Instances & Group algorithms verified & Divergences\\
+\midrule
+Correctness protocol ($n\le16$) & 1,200 & DP (three variants), DFS, B\&B, MITM & 0\\
+GRASP protocol ($n\le16$) & 1,800 & DP (three variants), DFS, B\&B, MITM & 0\\
+Large synthetic ($n=50$ to 600) & 90 & DP (three variants) & 0\\
+Real, modules ($n=12$) & 285 & DP (three variants), DFS, B\&B, MITM & 0\\
+Real, topics ($n=78$) & 158 & DP (three variants), B\&B & 0\\
+\midrule
+Total & 3,533 & & 0\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Guarantees, GRASP, sorting and correlation}
+
+Measured against the OR-Tools optimum, the guarantee of the greedy with the best item (at least half of the optimum) and that of the FPTAS (at least 90\% of the optimum with $\varepsilon=0.1$) held on all 1,200 instances of the correctness protocol (0 violations). The GRASP results were repeated: optimum in 98.1\% of the 1,800 instances, mean gap 0.044\% and worst gap 9.4\%.
+
+The group's merge sort produced the same order as \code{sorted}, with exact rational keys, on 1,295 lists. The three implementations of the Pearson correlation differ only from the 16th decimal place on. SciPy also provides the significance reported in Table~\ref{tab:pearson}: for the completion score, $r=-0.62$ has $p=0.03$ and a 95\% confidence interval from $-0.88$ to $-0.08$; for the content score, $r=+0.92$ has an interval from $+0.73$ to $+0.98$; for the engagement score, $r=+0.29$ has $p=0.01$; the NPS ($p=0.89$) and mastery ($p=0.25$) correlations are not significant.
+
+\subsection{Running time}
+
+The DP in pure Python is slower than the compiled libraries: roughly 13 to 15 times slower than OR-Tools at $n=50$ and 2 to 3 times at $n=600$ (OR-Tools also uses dynamic programming for $n>40$), and about 27 times slower than HiGHS at $n=600$ (roughly 190 to 300~ms against 7 to 11~ms, depending on the run). These are wall-clock times on one machine and one interpreter; the comparison by operation counters, which is the basis of our conclusions, is not affected.
+
+\subsection{The limit of Branch and Bound}
+
+The validation exposed a behavior that the experiments up to $n=40$ did not reveal. On strongly correlated instances with $\rho=0.5$ and a limit of 20~s per run, the group's Branch and Bound did \emph{not finish} in 7 of 15 runs (all three at $n=600$, two of three at $n=400$ and two of three at $n=200$), while the DP solved each of them in at most 0.3~s. This is the instance class that Pisinger identifies as hard for branch-and-bound algorithms \cite{pisinger2005}, and it supports the recommendation of Section~\ref{sec:discussion}: a predictable cost is worth more than a good average.

@@ -112,6 +112,17 @@ v(S')\ \ge\ K\,v'(S')\ \ge\ K\,v'(S^*)\ >\ \sum_{i\in S^*}(v_i-K)\ \ge\ \OPT-nK\
 where the last step uses $v_{\max}\le\OPT$ (the module with the largest score fits alone). The scaled scores satisfy $v'_i\le v_{\max}/K=n/\varepsilon$, so $S=\sum_iv'_i\le n^2/\varepsilon$ and the table has $(n+1)(S+1)=\bigO(n^3/\varepsilon)$ cells, each computed in constant time.
 \end{proof}
 
+\subsection{GRASP}\label{sec:complexity-grasp}
+
+\begin{proposition}[Feasibility, termination and cost of GRASP]\label{prop:grasp}
+Let $I$ be the number of iterations and $V=\sum_iv_i$ with integer scores. Algorithm~\ref{alg:grasp} always returns a feasible selection; each local search performs at most $n+V$ accepted moves; and the total cost is $\bigO(n\log n+I\,(n+V)\,n^2)$ in the worst case and $\Theta(n\log n)$ in the best case for constant $I$. The space is $\Theta(n)$. The algorithm is not exact.
+\end{proposition}
+\begin{proof}
+\emph{Feasibility.} The construction only adds modules that fit, and \textsc{Add} and \textsc{Swap} are applied only when the resulting selection fits. \emph{Termination.} \textsc{Add} increases the number of selected modules, which never decreases and is at most $n$, so there are at most $n$ \textsc{Add} moves. Every \textsc{Swap} strictly increases the total score, which never decreases, is an integer and is at most $V$, so there are at most $V$ \textsc{Swap} moves. A pass over all \textsc{Add} and \textsc{Swap} candidates tests $\bigO(n^2)$ pairs and a pass without accepted moves ends the search, so one local search performs at most $n+V+1$ passes. \emph{Cost.} The construction selects at most $n$ modules and rescans the candidates after each choice, $\bigO(n^2)$ tests; the initial sort costs $\Theta(n\log n)$. Summing $I$ iterations gives the worst-case bound. In the best case each phase is a single pass, $\Theta(n)$ per iteration, plus the sort. \emph{Not exact.} Section~\ref{sec:grasp} reports a worst gap of 9.4\% on random instances.
+\end{proof}
+
+With real-valued scores the search still terminates, because every accepted move leads to a selection that has not been visited, but the bound above no longer holds and the worst case may be exponential. The cost is pseudo-polynomial in the \emph{scores}, not in $T$, which is the opposite of the DP.
+
 \subsection{Summary}
 
 \begin{table}[h]
@@ -131,8 +142,9 @@ Greedy + best item & $\Theta(n\log n)$ & $\Theta(n\log n)$ & $\Theta(n\log n)$ &
 Branch and Bound & $\Theta(n\log n)$ & $\bigO(n2^n)$ & measured (instance dependent) & $\Theta(n)$\\
 Meet-in-the-Middle & $\Theta(n)$ & $\Theta(2^{n/2})$ & measured (depends on $T$) & $\bigO(2^{n/2})$\\
 FPTAS & $\Theta(nS)$ & $\bigO(n^3/\varepsilon)$ & $\Theta(nS)$ with $S\le n^2/\varepsilon$ & $\Theta(nS)$\\
+GRASP & $\Theta(n\log n)$ & $\bigO(n\log n+I(n+V)n^2)$ & measured (Section~\ref{sec:grasp}) & $\Theta(n)$\\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-The table summarizes the central trade-off. The algorithms that are exact and independent of the data (DP) pay a cost proportional to the \emph{magnitude} of $T$; the exact algorithms that depend on $n$ alone (DFS, Branch and Bound, Meet-in-the-Middle) pay an exponential cost in $n$ in the worst case; the greedy is the cheapest but carries no guarantee (Proposition~\ref{prop:greedy-unbounded}); and the FPTAS buys independence from $T$ at the price of exactness and a high polynomial cost.
+The table summarizes the central trade-off. The algorithms that are exact and independent of the data (DP) pay a cost proportional to the \emph{magnitude} of $T$; the exact algorithms that depend on $n$ alone (DFS, Branch and Bound, Meet-in-the-Middle) pay an exponential cost in $n$ in the worst case; the greedy is the cheapest but carries no guarantee (Proposition~\ref{prop:greedy-unbounded}); the FPTAS buys independence from $T$ at the price of exactness and a high polynomial cost; and GRASP trades the guarantee for flexibility, with a cost that depends on the scores and on the number of iterations rather than on $T$ (Proposition~\ref{prop:grasp}).

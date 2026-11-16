@@ -1,3 +1,17 @@
+"""GRASP (Greedy Randomized Adaptive Search Procedure) metaheuristic.
+
+Each iteration has two phases:
+  1. Greedy randomized construction: instead of always taking the best
+     remaining ratio (pure greedy), draw uniformly from a Restricted
+     Candidate List (RCL) holding the top-alpha fraction of the modules that
+     still fit. alpha -> 0 approaches the pure greedy; alpha = 1 is random.
+  2. Local search (first improvement): add any module that fits, and swap a
+     chosen module for an outside one with a higher score when it fits. Each
+     accepted move strictly raises the total score, so the search terminates.
+The best solution over all iterations is returned. There is no optimality
+guarantee: it is a heuristic, measured empirically against the exact DP.
+"""
+
 import random
 
 from .model import Result
@@ -5,9 +19,10 @@ from .sorting import sort_by_ratio
 
 
 def _construct(order, modules, budget, alpha, rng, counter):
+    """Build one solution; returns (chosen indices, time used)."""
     chosen, used = [], 0
     in_solution = [False] * len(modules)
-    candidates = list(order)
+    candidates = list(order)  # modules in decreasing score/time order
     while True:
         fitting = []
         for i in candidates:
@@ -16,7 +31,9 @@ def _construct(order, modules, budget, alpha, rng, counter):
                 fitting.append(i)
         if not fitting:
             return chosen, used
-        rcl_size = -(-int(alpha * 100 * len(fitting)) // 100)
+        # RCL = first ceil(alpha * |fitting|) candidates (the best ratios), at least 1.
+        # Integer arithmetic avoids floating-point surprises in the ceiling.
+        rcl_size = max(1, -(-int(alpha * 100 * len(fitting)) // 100))
         pick = fitting[rng.randrange(rcl_size)]
         chosen.append(pick)
         in_solution[pick] = True
@@ -24,6 +41,7 @@ def _construct(order, modules, budget, alpha, rng, counter):
 
 
 def _local_search(chosen, used, modules, budget, counter):
+    """Improve a solution with add and swap moves; returns (chosen, used, value)."""
     value = sum(modules[i].score for i in chosen)
     in_solution = [False] * len(modules)
     for i in chosen:
@@ -31,6 +49,7 @@ def _local_search(chosen, used, modules, budget, counter):
     improved = True
     while improved:
         improved = False
+        # Add move: any outside module that still fits.
         for i in range(len(modules)):
             counter[0] += 1
             if not in_solution[i] and used + modules[i].time <= budget:
@@ -39,13 +58,16 @@ def _local_search(chosen, used, modules, budget, counter):
                 used += modules[i].time
                 value += modules[i].score
                 improved = True
+        # Swap move: exchange a chosen module for an outside one with a higher score.
         for out in range(len(modules)):
             if in_solution[out]:
                 continue
             for inside in list(chosen):
                 counter[0] += 1
-                if (modules[out].score > modules[inside].score
-                        and used - modules[inside].time + modules[out].time <= budget):
+                if (
+                    modules[out].score > modules[inside].score
+                    and used - modules[inside].time + modules[out].time <= budget
+                ):
                     chosen.remove(inside)
                     in_solution[inside] = False
                     chosen.append(out)
@@ -58,6 +80,11 @@ def _local_search(chosen, used, modules, budget, counter):
 
 
 def grasp(modules, budget, iterations=20, alpha=None, seed=0):
+    """Run GRASP for ``iterations`` rounds and return the best solution found.
+
+    ``alpha=None`` draws a different alpha in [0.15, 0.9] in each iteration;
+    the fixed ``seed`` makes every run reproducible.
+    """
     rng = random.Random(seed)
     counter = [0]
     order = sort_by_ratio(modules, counter)

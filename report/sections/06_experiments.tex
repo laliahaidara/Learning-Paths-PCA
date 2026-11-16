@@ -1,6 +1,6 @@
 \section{Experimental Evaluation}\label{sec:experiments}
 
-The experiments confirm the analysis of Section~\ref{sec:complexity} and compare the algorithms on instances of different structure. All of them are implemented in \code{experiment.py} and can be reproduced with the commands of Appendix~\ref{app:run}; every table of this section is generated from the CSV files that the code writes to \code{results/}.
+The experiments confirm the analysis of Section~\ref{sec:complexity} and compare the algorithms on instances of different structure. All of them are implemented in \code{experiment.py} and can be reproduced with the commands of Appendix~\ref{app:run}; every table of this section is generated from the CSV files that the code writes to \code{results/}. The experiments with real data, with the GRASP metaheuristic and with external libraries are reported in Sections~\ref{sec:real}, \ref{sec:grasp} and~\ref{sec:validation}.
 
 \subsection{Methodology}\label{sec:method}
 
@@ -8,7 +8,7 @@ The experiments confirm the analysis of Section~\ref{sec:complexity} and compare
 
 \paragraph{Instance families.} Let $R$ be the maximum module time. In all families the times $w_i$ are drawn uniformly from $\{1,\dots,R\}$. The \emph{uncorrelated} family draws $v_i$ uniformly from $\{1,\dots,R\}$ independently of $w_i$. The \emph{weakly correlated} family sets $v_i=\max\{1,\,w_i+\delta_i\}$ with $\delta_i$ uniform in $[-\lfloor R/10\rfloor,\lfloor R/10\rfloor]$. The \emph{strongly correlated} family sets $v_i=w_i+\lfloor R/2\rfloor$. As noted in Section~\ref{sec:decisions}, the literature usually adds $R/10$ in the strongly correlated case; we use a larger constant so that the effect is evident with small ranges. The budget is $T=\max\{1,\lfloor\rho\sum_iw_i\rfloor\}$ for a \emph{budget ratio} $\rho$. Unless stated otherwise $R=20$. All instances are generated from fixed seeds, so every experiment is reproducible.
 
-\subsection{Correctness validation}
+\subsection{Correctness validation}\label{sec:exp-correct}
 
 Before any measurement, the implementations were validated by five edge cases (no modules, $T=0$, no module fits, all modules fit, and tied scores) and by 1,200 random instances with $n\le16$, drawn from the three families with $\rho\in\{0.1,0.3,0.5,0.7,1.0\}$ and $R\in\{5,20\}$. For each instance, the exhaustive DFS is the reference. The checks were: (i) all exact algorithms (DFS, the three DP versions, Branch and Bound, Meet-in-the-Middle) return the same optimal value; (ii) every returned selection is feasible and its score equals the reported value; (iii) the greedy value never exceeds the optimum; (iv) the greedy with the best single module reaches at least half of the optimum (Proposition~\ref{prop:greedy-half}); (v) the FPTAS with $\varepsilon=0.1$ stays between 90\% and 100\% of the optimum (Theorem~\ref{thm:fptas}). \textbf{Result: 0 failures.} This also validates the comparison baseline used in the following experiments.
 
@@ -39,7 +39,7 @@ For the average case ($T=50\%$ of the total time, which prunes part of the tree)
 
 In this range the DP is comparatively expensive in operations for small $n$ (its cost is $n(T+1)$ regardless of the data), while Branch and Bound needs very few operations: even in the DFS worst case it performs only 602 operations at $n=22$, because when every module fits the greedy path is optimal and the bound prunes everything else. This scenario is therefore favorable to Branch and Bound; Section~\ref{sec:exp-families} shows that this does not hold for all instance families.
 
-\subsection{Dynamic programming and greedy at scale}
+\subsection{Dynamic programming and greedy at scale}\label{sec:exp-scale}
 
 The DFS cannot be run at large $n$, but the DP and the greedy can. Table~\ref{tab:scale} and Figure~\ref{fig:scale} report $n$ from 50 to 600 modules (uncorrelated family, $\rho=0.5$). The number of DP operations coincides \emph{exactly} with $n(T+1)$ at every size, confirming Theorem~\ref{thm:dp}. The DP solves an instance with 600 modules and $T=3{,}060$ time units in about 0.37~s of pure Python, i.e.\ roughly 0.2~$\mu$s per cell. The vector version is about 40\% faster because it avoids allocating the table. The greedy performs between 0.95 and 0.98 operations per $n\log_2 n$, as expected from Proposition~\ref{prop:greedy-time}, and takes less than two milliseconds.
 
@@ -56,7 +56,7 @@ The DFS cannot be run at large $n$, but the DP and the greedy can. Table~\ref{ta
 \caption{Time and operations of the DP and the greedy as $n$ grows (log--log). The dashed line is $n(T+1)$, which the DP operation count matches exactly.}\label{fig:scale}
 \end{figure}
 
-\subsection{Pseudo-polynomial behavior}
+\subsection{Pseudo-polynomial behavior}\label{sec:exp-pseudo}
 
 To demonstrate Proposition~\ref{prop:pseudo} we keep the same 18 modules and multiply all times and the budget by a factor from 1 to 1,024 (for instance, hours expressed in minutes and then in smaller units). The structure of the instance does not change, only the \emph{magnitude} of $T$, which goes from 100 to 102,400. Table~\ref{tab:pseudo} and Figure~\ref{fig:pseudo} show that the DP operations grow in proportion to $T$ (from 1,818 to 1,843,218, a factor of about 1,014 for a factor of 1,024 in $T$) and its time from 0.0002~s to 0.27~s, whereas the DFS, Branch and Bound, Meet-in-the-Middle and greedy counts do not change at all: they depend on $n$ and not on $T$.
 
@@ -120,7 +120,7 @@ Table~\ref{tab:families} and Figure~\ref{fig:families} compare Branch and Bound,
 
 DP and Meet-in-the-Middle cost the same in both families, as predicted: their cost depends on $n$ and $T$ (DP) or on $n$ (MITM), not on the relation between times and scores. Branch and Bound, in contrast, depends strongly on the family: on strongly correlated instances it needs 11 to 15 times more operations than on uncorrelated ones (for instance 17,162 against 1,377 on average at $n=40$), and its worst observed run (44,475 operations) is 21 times its worst uncorrelated run (2,087). This agrees with the literature, where strongly correlated instances are reported as hard for branch-and-bound algorithms \cite{pisinger2005}; a plausible explanation, which we did not test, is that the fractional bound is less effective on them. Meet-in-the-Middle grows by a factor of 32 from $n=30$ to $n=40$ (261,460 to 8,387,202), exactly the factor $2^{10/2}$ predicted by Theorem~\ref{thm:mitm}, and from $n=30$ on it already costs more than the DP (21.5 times more at $n=40$) because $T$ is small relative to $2^{n/2}$.
 
-\subsection{FPTAS}
+\subsection{FPTAS}\label{sec:exp-fptas}
 
 Table~\ref{tab:fptas} compares the FPTAS with the exact DP on a strongly correlated instance with $n=30$.
 
