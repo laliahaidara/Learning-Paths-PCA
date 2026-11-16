@@ -1,0 +1,9 @@
+unidade,T,algoritmo,valor,operacoes
+horas,10,DP,49,132
+horas,10,B&B,49,124
+blocos de 15 min,40,DP,57,492
+blocos de 15 min,40,B&B,57,348
+blocos de 5 min,120,DP,56,1452
+blocos de 5 min,120,B&B,56,311
+minutos,600,DP,56,7212
+minutos,600,B&B,56,311

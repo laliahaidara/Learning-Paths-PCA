@@ -1,6 +1,6 @@
 """Branch and bound with a fractional (Dantzig) upper bound (Dantzig, 1957).
 
-Same search tree as the exhaustive DFS, but a branch is cut as soon as an
+Explores the "take / skip" tree depth first, but a branch is cut as soon as an
 optimistic estimate of its best possible score cannot beat the best solution
 found so far. Still exponential in the worst case, usually much faster.
 """

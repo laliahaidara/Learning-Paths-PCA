@@ -1,6 +1,6 @@
 """Validation of our hand-written algorithms against independent libraries.
 
-Blocks (choose with --only): optimum, guarantees, sorting, pearson, runtime, bnb.
+Blocks (choose with --only): optimum, sorting, pearson, runtime, bnb.
 Needs ortools, scipy and numpy. Output: results/validation_*.csv.
 
     python experiment_validation.py                  # every block (~10 min)
@@ -24,12 +24,6 @@ from algorithms import (
     dp_table,
     dp_vector,
     evaluate,
-    exhaustive_dfs,
-    fptas,
-    grasp,
-    greedy,
-    greedy_with_best_item,
-    meet_in_the_middle,
 )
 from algorithms.sorting import sort_by_ratio
 from common import measure, save_csv
@@ -95,8 +89,8 @@ def protocol_instances(count=1200, seed=2024):
         )
 
 
-def grasp_instances():
-    """1,800 small instances (n = 8, 12, 16) used to evaluate GRASP."""
+def grid_instances():
+    """1,800 small instances (n = 8, 12, 16): families x seeds x budget ratios."""
     for family in FAMILIES:
         for seed in range(40):
             for rho in (0.1, 0.3, 0.5, 0.7, 1.0):
@@ -129,15 +123,13 @@ def real_topic_instances():
             yield modules, budget
 
 
-# Which hand-written exact algorithms run on which instances: DFS, B&B and MITM are too slow
-# for n >= 50, so the large and topic-level instances only run the DP variants (and B&B for
-# the 78 topics, which finishes there).
+# Which hand-written exact algorithms run on which instances: B&B can be too slow for
+# n >= 50 on strongly correlated data, so the large instances only run the DP variants (and
+# B&B for the 78 topics, which finishes there).
 SMALL_EXACT = {
-    "DFS": exhaustive_dfs,
     "DP (memoizada)": dp_memoized,
     "DP (vetor)": dp_vector,
     "B&B": branch_and_bound,
-    "MITM": meet_in_the_middle,
 }
 LARGE_EXACT = {"DP (memoizada)": dp_memoized, "DP (vetor)": dp_vector}
 TOPIC_EXACT = {"DP (memoizada)": dp_memoized, "DP (vetor)": dp_vector, "B&B": branch_and_bound}
@@ -150,7 +142,7 @@ def exp_optimum():
     print("== Optimum: hand-written exact algorithms vs OR-Tools and SciPy/HiGHS")
     sets = [
         ("protocolo de correção (n<=16)", protocol_instances(), SMALL_EXACT),
-        ("protocolo do GRASP (n<=16)", grasp_instances(), SMALL_EXACT),
+        ("grade de instâncias pequenas (n<=16)", grid_instances(), SMALL_EXACT),
         ("sintéticas grandes (n=50..600)", large_instances(), LARGE_EXACT),
         ("reais, módulos (n=12)", real_module_instances(), SMALL_EXACT),
         ("reais, tópicos (n=78)", real_topic_instances(), TOPIC_EXACT),
@@ -191,7 +183,7 @@ def exp_optimum():
         row.update(
             {
                 f"divergencias {name}": mismatches.get(name, "")
-                for name in ["DP (tabela)", "DP (memoizada)", "DP (vetor)", "B&B", "MITM", "DFS"]
+                for name in ["DP (tabela)", "DP (memoizada)", "DP (vetor)", "B&B"]
             }
         )
         rows.append(row)
@@ -200,52 +192,6 @@ def exp_optimum():
             f"{sum(mismatches.values())}  (oráculos entre si: {oracle_disagree})"
         )
     save_csv("validation_optimum.csv", rows)
-
-
-def exp_guarantees():
-    """Block ``guarantees``: greedy <= OPT, greedy+item >= OPT/2, FPTAS >= 0.9 OPT, and GRASP
-    quality vs OPT.
-    """
-    print("== Guarantees of greedy / FPTAS / GRASP against the OR-Tools optimum")
-    rows = []
-    violations = {
-        "guloso > ótimo": 0,
-        "guloso+item < ótimo/2": 0,
-        "FPTAS(0,1) < 0,9·ótimo": 0,
-        "FPTAS > ótimo": 0,
-    }
-    total = 0
-    for modules, budget in protocol_instances():
-        total += 1
-        opt = ortools_optimum(modules, budget)
-        g, gi = greedy(modules, budget).value, greedy_with_best_item(modules, budget).value
-        f = fptas(modules, budget, 0.1).value
-        # Each comparison is a bool, so += counts violations (True adds 1).
-        violations["guloso > ótimo"] += g > opt
-        violations["guloso+item < ótimo/2"] += 2 * gi < opt or gi > opt
-        violations["FPTAS(0,1) < 0,9·ótimo"] += f < 0.9 * opt
-        violations["FPTAS > ótimo"] += f > opt
-    for name, count in violations.items():
-        rows.append({"verificacao": name, "instancias": total, "violacoes": count, "valor": ""})
-        print(f"  {name:26s} violações: {count} / {total}")
-
-    hits, gaps, total = 0, [], 0
-    for modules, budget in grasp_instances():
-        total += 1
-        opt = ortools_optimum(modules, budget)
-        value = grasp(modules, budget).value
-        assert value <= opt, "GRASP above the library optimum"  # impossible unless a bug
-        hits += value == opt
-        gaps.append(0.0 if opt == 0 else 100 * (opt - value) / opt)
-    summary = [
-        ("GRASP: % de ótimos", round(100 * hits / total, 1)),
-        ("GRASP: gap médio (%)", round(statistics.mean(gaps), 3)),
-        ("GRASP: pior gap (%)", round(max(gaps), 1)),
-    ]
-    for name, value in summary:
-        rows.append({"verificacao": name, "instancias": total, "violacoes": "", "valor": value})
-        print(f"  {name:26s} {value}")
-    save_csv("validation_guarantees.csv", rows)
 
 
 def exp_sorting():
@@ -388,7 +334,6 @@ def exp_bnb(limit_seconds=20):
 # Block name -> function; ``--only`` picks from these keys.
 BLOCKS = {
     "optimum": exp_optimum,
-    "guarantees": exp_guarantees,
     "sorting": exp_sorting,
     "pearson": exp_pearson,
     "runtime": exp_runtime,

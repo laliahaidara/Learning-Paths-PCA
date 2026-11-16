@@ -1,0 +1,36 @@
+== Optimum: hand-written exact algorithms vs OR-Tools and SciPy/HiGHS
+  protocolo de correção (n<=16)     1200 instâncias  divergências: 0  (oráculos entre si: 0)
+  grade de instâncias pequenas (n<=16)  1800 instâncias  divergências: 0  (oráculos entre si: 0)
+  sintéticas grandes (n=50..600)      90 instâncias  divergências: 0  (oráculos entre si: 0)
+  reais, módulos (n=12)              285 instâncias  divergências: 0  (oráculos entre si: 0)
+  reais, tópicos (n=78)              158 instâncias  divergências: 0  (oráculos entre si: 0)
+== Merge sort vs sorted() (exact Fraction keys, both stable)
+  1295 listas ordenadas, ordens diferentes: 0
+== Pearson: statistics.correlation vs numpy.corrcoef vs scipy.stats.pearsonr
+  modulos/conclusao    n=12  r=-0.624  p=0.0301  IC95=[-0.88, -0.08]  dif. máx=0.0e+00
+  modulos/conteudo     n=12  r=+0.920  p=0.0000  IC95=[+0.73, +0.98]  dif. máx=2.2e-16
+  modulos/nps          n=12  r=-0.047  p=0.8853  IC95=[-0.60, +0.54]  dif. máx=2.8e-17
+  topicos/dominio      n=78  r=+0.133  p=0.2474  IC95=[-0.09, +0.34]  dif. máx=1.1e-16
+  topicos/engajamento  n=78  r=+0.287  p=0.0108  IC95=[+0.07, +0.48]  dif. máx=2.8e-16
+== Runtime: DP in pure Python vs OR-Tools (C++) vs SciPy/HiGHS
+  n= 50 T=  265  DP     1.35 ms  OR-Tools   0.102 ms  HiGHS    8.21 ms
+  n=100 T=  529  DP     9.39 ms  OR-Tools   0.505 ms  HiGHS    4.50 ms
+  n=200 T= 1001  DP    19.12 ms  OR-Tools   2.673 ms  HiGHS    5.10 ms
+  n=400 T= 2052  DP    93.18 ms  OR-Tools  24.857 ms  HiGHS    6.52 ms
+  n=600 T= 3182  DP   211.57 ms  OR-Tools  77.513 ms  HiGHS   16.10 ms
+== Hand-written B&B on strongly correlated instances (limit 20 s per run)
+  n= 50 T=  250  B&B: sim 0.02 s   DP: 0.002 s
+  n= 50 T=  231  B&B: sim 0.002 s   DP: 0.002 s
+  n= 50 T=  252  B&B: sim 0.002 s   DP: 0.002 s
+  n=100 T=  483  B&B: sim 3.032 s   DP: 0.011 s
+  n=100 T=  494  B&B: sim 0.002 s   DP: 0.006 s
+  n=100 T=  591  B&B: sim 0.001 s   DP: 0.007 s
+  n=200 T= 1097  B&B: não >20 s   DP: 0.029 s
+  n=200 T= 1012  B&B: não >20 s   DP: 0.029 s
+  n=200 T= 1095  B&B: sim 14.856 s   DP: 0.033 s
+  n=400 T= 2086  B&B: sim 0.007 s   DP: 0.107 s
+  n=400 T= 2151  B&B: não >20 s   DP: 0.111 s
+  n=400 T= 1993  B&B: não >20 s   DP: 0.109 s
+  n=600 T= 3096  B&B: não >20 s   DP: 0.246 s
+  n=600 T= 3174  B&B: não >20 s   DP: 0.212 s
+  n=600 T= 3294  B&B: não >20 s   DP: 0.403 s

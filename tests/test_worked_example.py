@@ -16,16 +16,11 @@ from algorithms import (  # noqa: E402
     dp_memoized,
     dp_table,
     dp_vector,
-    exhaustive_dfs,
-    fptas,
-    greedy,
-    greedy_with_best_item,
-    meet_in_the_middle,
     validate_instance,
 )
 from experiment import test_instance  # noqa: E402
 
-# D[i][t] for i = 0..6 modules considered and t = 0..10 hours (Table 1 of the report).
+# D[i][t] for i = 0..6 modules considered and t = 0..10 hours (the test instance of the report).
 EXPECTED_TABLE = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
@@ -53,28 +48,19 @@ class WorkedExample(unittest.TestCase):
         self.assertEqual(result.operations, 6 * 11)  # n * (T + 1) cells
 
     def test_every_exact_algorithm_finds_the_optimum(self):
-        for algorithm in (exhaustive_dfs, dp_memoized, branch_and_bound, meet_in_the_middle):
+        for algorithm in (dp_memoized, branch_and_bound):
             result = algorithm(self.modules, self.budget)
             self.assertEqual(result.value, 91, result.algorithm)
             self.assertEqual(self.names(result), OPTIMAL_SET, result.algorithm)
         self.assertEqual(dp_vector(self.modules, self.budget).value, 91)
 
-    def test_greedy_is_suboptimal_here(self):
-        result = greedy(self.modules, self.budget)
-        self.assertEqual(result.value, 77)
-        self.assertEqual(
-            self.names(result), ["Programming Logic", "Python Basics", "Databases", "Git"]
-        )
-        self.assertEqual(greedy_with_best_item(self.modules, self.budget).value, 77)
-        self.assertAlmostEqual((91 - 77) / 91, 0.154, places=3)  # the 15.4% gap
+    def test_memoized_dp_visits_fewer_states_than_the_table(self):
+        self.assertEqual(dp_memoized(self.modules, self.budget).operations, 32)
 
-    def test_fptas_guarantee(self):
-        self.assertGreaterEqual(fptas(self.modules, self.budget, 0.1).value, 0.9 * 91)
-
-    def test_adversarial_instance(self):
+    def test_branch_and_bound_matches_dp_on_a_second_instance(self):
         modules = [LearningModule("short", 1, 2), LearningModule("long", 1000, 1000)]
-        self.assertEqual(greedy(modules, 1000).value, 2)  # 99.8% below the optimum
-        self.assertEqual(greedy_with_best_item(modules, 1000).value, 1000)
+        self.assertEqual(branch_and_bound(modules, 1000).value, 1000)
+        self.assertEqual(dp_table(modules, 1000)[0].value, 1000)
 
     def test_input_validation(self):
         with self.assertRaises(ValueError):

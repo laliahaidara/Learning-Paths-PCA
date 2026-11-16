@@ -1,7 +1,7 @@
 """Hand-written merge sort, Theta(n log n), with a comparison counter.
 
 Written by hand (instead of ``sorted``) so the cost of sorting is counted in
-the ``operations`` of the greedy algorithm, B&B and GRASP.
+the ``operations`` of the branch and bound.
 """
 
 

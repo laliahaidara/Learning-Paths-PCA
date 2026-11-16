@@ -1,0 +1,41 @@
+== Real-data profile (times in minutes)
+  conclusao  n=12 tempos 16..376 min, Pearson r=-0.624
+  conteudo   n=12 tempos 16..376 min, Pearson r=+0.920
+  nps        n=12 tempos 16..376 min, Pearson r=-0.047
+  uncorrelated           (sintetica, media de 30) r=+0.105
+  weakly_correlated      (sintetica, media de 30) r=+0.981
+  strongly_correlated    (sintetica, media de 30) r=+1.000
+== DP and B&B on the real catalog
+  conclusao  T=2h  otimo= 238 ops DP=1452 B&B=79
+  conclusao  T=5h  otimo= 420 ops DP=3612 B&B=159
+  conclusao  T=10h otimo= 565 ops DP=7212 B&B=171
+  conclusao  T=20h otimo= 619 ops DP=14412 B&B=195
+  conteudo   T=2h  otimo=  21 ops DP=1452 B&B=113
+  conteudo   T=5h  otimo=  37 ops DP=3612 B&B=138
+  conteudo   T=10h otimo=  56 ops DP=7212 B&B=311
+  conteudo   T=20h otimo=  79 ops DP=14412 B&B=197
+  nps        T=2h  otimo= 386 ops DP=1452 B&B=190
+  nps        T=5h  otimo= 671 ops DP=3612 B&B=399
+  nps        T=10h otimo= 953 ops DP=7212 B&B=171
+  nps        T=20h otimo=1143 ops DP=14412 B&B=195
+== Pseudo-polynomial behavior on the real instance (score=conteudo)
+  horas              T=  10: DP    132 ops
+  blocos de 15 min   T=  40: DP    492 ops
+  blocos de 5 min    T= 120: DP   1452 ops
+  minutos            T= 600: DP   7212 ops
+== Budget sweep from a single DP table (last row)
+  conclusao  otimo com 2h=238, 5h=420, 10h=565, tudo cabe a partir de 1108 min
+  conteudo   otimo com 2h=21, 5h=37, 10h=56, tudo cabe a partir de 1108 min
+  nps        otimo com 2h=386, 5h=671, 10h=953, tudo cabe a partir de 1108 min
+== Topic-level profile (n grows, times from activity-weighted split)
+  dominio      n=78 tempos 1..149 min, total 1107 min, Pearson r=+0.133
+  engajamento  n=78 tempos 1..149 min, total 1107 min, Pearson r=+0.287
+== Algorithms on the topic-level instance (n=78)
+  dominio      T=2h  otimo=  2659 ops DP=9438 B&B=1806
+  dominio      T=5h  otimo=  3196 ops DP=23478 B&B=2358
+  dominio      T=10h otimo=  3611 ops DP=46878 B&B=3775
+  dominio      T=20h otimo=  3905 ops DP=93678 B&B=6602
+  engajamento  T=2h  otimo=  9061 ops DP=9438 B&B=568
+  engajamento  T=5h  otimo= 11710 ops DP=23478 B&B=1177
+  engajamento  T=10h otimo= 12977 ops DP=46878 B&B=2700
+  engajamento  T=20h otimo= 13573 ops DP=93678 B&B=6567

@@ -7,8 +7,8 @@ most t units of time:
     D[i][t] = D[i-1][t]                                   if w_i > t
     D[i][t] = max(D[i-1][t], D[i-1][t - w_i] + v_i)       if w_i <= t
 
-The answer is D[n][T]. It is the DFS "with memory": the 2^n subsets collapse
-into only n * (T + 1) distinct states (i, remaining time).
+The answer is D[n][T]. It is the "take / skip" recursion with memory: the 2^n
+subsets collapse into only n * (T + 1) distinct states (i, remaining time).
 """
 
 import sys
@@ -63,7 +63,7 @@ def dp_vector(modules, budget):
 
 
 def dp_memoized(modules, budget):
-    """Top-down DP: the DFS recursion plus a cache of already solved states.
+    """Top-down DP: the take / skip recursion plus a cache of already solved states.
 
     Only the states (i, t) that the recursion actually reaches are stored, so
     it can be cheaper than the full table. ``operations`` is the number of

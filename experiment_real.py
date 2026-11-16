@@ -7,8 +7,7 @@ Usage:
 Blocks:
     profile      - dataset description and Pearson correlation time x score,
                    locating the real data among the synthetic families;
-    algorithms   - the six algorithms on the real catalog, per weekly budget;
-    gap          - greedy gap across a fine sweep of budgets;
+    algorithms   - DP and B&B on the real catalog, per weekly budget;
     pseudopoly   - same instance in hours / 15-min blocks / minutes (T grows,
                    n fixed): the practical price of the DP's pseudo-polynomiality;
     sweep        - one DP table answers every budget (last row), per score.
@@ -16,19 +15,16 @@ Blocks:
 import argparse
 import statistics
 
-from algorithms import (branch_and_bound, dp_memoized, dp_table,
-                        dp_vector, exhaustive_dfs, greedy,
-                        greedy_with_best_item, meet_in_the_middle)
-from common import fptas_10, run_dp, save_csv
+from algorithms import branch_and_bound, dp_memoized, dp_table, dp_vector
+from common import run_dp, save_csv
 from instances import generate_instance
 from real_instances import (SCORE_DEFINITIONS, TOPIC_SCORE_DEFINITIONS,
                             real_instance, real_topic_instance,
                             weekly_budgets_minutes)
 
 
-ALL = {"DFS": exhaustive_dfs, "DP": run_dp, "DP-vector": dp_vector,
-       "DP-memo": dp_memoized, "B&B": branch_and_bound, "MITM": meet_in_the_middle,
-       "Greedy": greedy, "Greedy+best": greedy_with_best_item, "FPTAS-0.1": fptas_10}
+ALL = {"DP": run_dp, "DP-vector": dp_vector, "DP-memo": dp_memoized,
+       "B&B": branch_and_bound}
 EXACT_REFERENCE = "DP"
 
 
@@ -70,8 +66,8 @@ def exp_profile():
 
 # --------------------------------------------------------------- algorithms
 def exp_algorithms():
-    """All algorithms on the real catalog, one line per (score, budget)."""
-    print("== All algorithms on the real catalog")
+    """DP and B&B on the real catalog, one line per (score, budget)."""
+    print("== DP and B&B on the real catalog")
     rows = []
     for score_def in SCORE_DEFINITIONS:
         modules = real_instance(score=score_def)
@@ -79,40 +75,17 @@ def exp_algorithms():
             optimum = run_dp(modules, budget).value
             for name, algorithm in ALL.items():
                 result = algorithm(modules, budget)
-                loss = 0.0 if optimum == 0 else 100 * (optimum - result.value) / optimum
+                assert result.value == optimum, f"{name} is not optimal"
                 rows.append({"score": score_def, "orcamento": label,
                              "algoritmo": name, "valor": result.value,
-                             "otimo": optimum, "perda_pct": round(loss, 1),
-                             "operacoes": result.operations})
-            best = [r for r in rows if r["score"] == score_def
-                    and r["orcamento"] == label and r["algoritmo"] == "Greedy"][0]
+                             "otimo": optimum, "operacoes": result.operations})
+            dp_row = [r for r in rows if r["score"] == score_def
+                      and r["orcamento"] == label and r["algoritmo"] == "DP"][0]
+            bb_row = [r for r in rows if r["score"] == score_def
+                      and r["orcamento"] == label and r["algoritmo"] == "B&B"][0]
             print(f"  {score_def:10s} T={label:3s} otimo={optimum:4d} "
-                  f"greedy perde {best['perda_pct']}%")
+                  f"ops DP={dp_row['operacoes']} B&B={bb_row['operacoes']}")
     save_csv("real_all_algorithms.csv", rows)
-
-
-# ---------------------------------------------------------------------- gap
-def exp_gap():
-    """Greedy gap over a fine budget sweep (every 15 min from 1h to 24h)."""
-    print("== Greedy gap, fine budget sweep")
-    rows = []
-    for score_def in SCORE_DEFINITIONS:
-        modules = real_instance(score=score_def)
-        worst = (0.0, None)
-        for budget in range(60, 24 * 60 + 1, 15):
-            optimum = run_dp(modules, budget).value
-            if optimum == 0:
-                continue
-            for name, algorithm in (("Greedy", greedy),
-                                    ("Greedy+best", greedy_with_best_item)):
-                value = algorithm(modules, budget).value
-                g = 100 * (optimum - value) / optimum
-                rows.append({"score": score_def, "T_min": budget,
-                             "algoritmo": name, "gap_pct": round(g, 2)})
-                if name == "Greedy" and g > worst[0]:
-                    worst = (g, budget)
-        print(f"  {score_def:10s} pior gap do greedy: {worst[0]:.1f}% em T={worst[1]} min")
-    save_csv("real_greedy_gap.csv", rows)
 
 
 # --------------------------------------------------------------- pseudopoly
@@ -124,7 +97,7 @@ def exp_pseudopoly():
                         (1, "minutos")):
         modules = real_instance(score="conteudo", unit_minutes=unit)
         budget = max(1, round(600 / unit))  # 10 h in the chosen unit
-        for name in ("DFS", "DP", "B&B", "MITM", "Greedy"):
+        for name in ("DP", "B&B"):
             result = ALL[name](modules, budget)
             rows.append({"unidade": label, "T": budget, "algoritmo": name,
                          "valor": result.value, "operacoes": result.operations})
@@ -152,11 +125,10 @@ def exp_sweep():
 
 
 # ------------------------------------------------------------- topic level
-# At n=78 the DFS and MITM are infeasible by design (2^79 nodes / 2^39 subsets):
-# exactly the regime where the paper says only DP, B&B and the heuristics apply.
+# At n=78 an exhaustive enumeration is infeasible by design (2^78 subsets):
+# exactly the regime where only DP and B&B apply.
 TOPIC_ALGORITHMS = {"DP": run_dp, "DP-vector": dp_vector, "DP-memo": dp_memoized,
-                    "B&B": branch_and_bound, "Greedy": greedy,
-                    "Greedy+best": greedy_with_best_item, "FPTAS-0.1": fptas_10}
+                    "B&B": branch_and_bound}
 
 
 def exp_topic_profile():
@@ -185,49 +157,22 @@ def exp_topic_algorithms():
             optimum = run_dp(modules, budget).value
             for name, algorithm in TOPIC_ALGORITHMS.items():
                 result = algorithm(modules, budget)
-                loss = 0.0 if optimum == 0 else 100 * (optimum - result.value) / optimum
+                assert result.value == optimum, f"{name} is not optimal"
                 rows.append({"score": score_def, "orcamento": label,
                              "algoritmo": name, "valor": result.value,
-                             "otimo": optimum, "perda_pct": round(loss, 1),
-                             "operacoes": result.operations})
-            greedy_row = [r for r in rows if r["score"] == score_def
-                          and r["orcamento"] == label and r["algoritmo"] == "Greedy"][0]
+                             "otimo": optimum, "operacoes": result.operations})
             bb_row = [r for r in rows if r["score"] == score_def
                       and r["orcamento"] == label and r["algoritmo"] == "B&B"][0]
             dp_row = [r for r in rows if r["score"] == score_def
                       and r["orcamento"] == label and r["algoritmo"] == "DP"][0]
             print(f"  {score_def:12s} T={label:3s} otimo={optimum:6d} "
-                  f"greedy perde {greedy_row['perda_pct']:4.1f}% | "
                   f"ops DP={dp_row['operacoes']} B&B={bb_row['operacoes']}")
     save_csv("real_topic_algorithms.csv", rows)
 
 
-def exp_topic_gap():
-    print("== Topic-level greedy gap, fine budget sweep")
-    rows = []
-    for score_def in TOPIC_SCORE_DEFINITIONS:
-        modules = real_topic_instance(score=score_def)
-        worst = (0.0, None)
-        for budget in range(30, 20 * 60 + 1, 15):
-            optimum = run_dp(modules, budget).value
-            if optimum == 0:
-                continue
-            for name, algorithm in (("Greedy", greedy),
-                                    ("Greedy+best", greedy_with_best_item)):
-                value = algorithm(modules, budget).value
-                g = 100 * (optimum - value) / optimum
-                rows.append({"score": score_def, "T_min": budget,
-                             "algoritmo": name, "gap_pct": round(g, 2)})
-                if name == "Greedy" and g > worst[0]:
-                    worst = (g, budget)
-        print(f"  {score_def:12s} pior gap do greedy: {worst[0]:.1f}% em T={worst[1]} min")
-    save_csv("real_topic_greedy_gap.csv", rows)
-
-
-BLOCKS = {"profile": exp_profile, "algorithms": exp_algorithms, "gap": exp_gap,
+BLOCKS = {"profile": exp_profile, "algorithms": exp_algorithms,
           "pseudopoly": exp_pseudopoly, "sweep": exp_sweep,
-          "tprofile": exp_topic_profile, "talgorithms": exp_topic_algorithms,
-          "tgap": exp_topic_gap}
+          "tprofile": exp_topic_profile, "talgorithms": exp_topic_algorithms}
 
 
 def main():

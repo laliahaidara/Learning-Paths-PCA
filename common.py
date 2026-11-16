@@ -1,7 +1,7 @@
 """Helpers shared by every experiment script: CSV output and timing.
 
-Kept in one place so ``experiment.py``, ``experiment_validation.py``,
-``experiment_real.py`` and ``experiment_grasp.py`` do not repeat them.
+Kept in one place so ``experiment.py``, ``experiment_validation.py`` and
+``experiment_real.py`` do not repeat them.
 """
 
 import csv
@@ -9,7 +9,7 @@ import os
 import statistics
 import time
 
-from algorithms import dp_table, fptas
+from algorithms import dp_table
 
 OUTPUT_DIR = "results"  # every CSV and PNG produced by the experiments goes here
 
@@ -40,8 +40,3 @@ def measure(function, *args, repetitions=3):
 def run_dp(modules, budget):
     """Run the table DP and keep only its Result (the DP matrix is dropped)."""
     return dp_table(modules, budget)[0]
-
-
-def fptas_10(modules, budget):
-    """FPTAS with epsilon = 0.1, the setting used in the report."""
-    return fptas(modules, budget, 0.1)

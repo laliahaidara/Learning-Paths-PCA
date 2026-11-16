@@ -1,9 +1,0 @@
-# Main experiments (experiment.py) and the unit tests need only the standard
-# library plus matplotlib (for the plots).
-matplotlib>=3.7
-
-# Needed ONLY by experiment_validation.py (independent oracles; the algorithms
-# in algorithms/ do not import them).
-ortools>=9.8
-scipy>=1.10
-numpy>=1.24

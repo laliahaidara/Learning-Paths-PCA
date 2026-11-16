@@ -57,7 +57,7 @@ def real_instance(score="conclusao", unit_minutes=1, course=None):
 def weekly_budgets_minutes():
     """Weekly study budgets (in minutes) used in the report's scenarios.
 
-    Used by ``experiment_real.py`` and ``experiment_grasp.py``.
+    Used by ``experiment_real.py``.
     """
     return {"2h": 120, "5h": 300, "10h": 600, "20h": 1200}
 
