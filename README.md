@@ -26,7 +26,7 @@ experiment_grasp.py       # GRASP experiments (adapted from MAS-Cloud+)
 tests/                    # unit tests that pin the report's worked example (6 modules, T = 10)
 requirements.txt          # matplotlib (+ ortools, scipy, numpy only for the validation)
 results/                  # CSVs, plots (PNG) and the full output of one run
-report/                   # final-report-en.pdf/.docx = THE SUBMITTED REPORT (12 pages, English, ABNT format),
+report/                   # final-report-en.pdf/.docx = THE SUBMITTED REPORT (at most 12 pages, English, ABNT format),
                           # report.pdf + report.tex + sections/ = extended version with the full proofs (not the
                           # submission, longer than 12 pages), relatorio-final-atualizado.* = Portuguese reading
                           # version, figures/, make_tables.py (regenerates the tables from results/*.csv)
