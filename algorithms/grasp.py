@@ -1,5 +1,9 @@
 """GRASP (Greedy Randomized Adaptive Search Procedure) metaheuristic.
 
+Metaheuristic of Resende and Ribeiro (2016), adapted to the learning-path knapsack
+from the three-layer scheduler of MAS-Cloud+ (Mendes et al., 2022), whose middle layer
+is a GRASP. The code is our own implementation; only the idea comes from those works.
+
 Each iteration has two phases:
   1. Greedy randomized construction: instead of always taking the best
      remaining ratio (pure greedy), draw uniformly from a Restricted

@@ -15,17 +15,21 @@ algorithms/               # ALGORITHM files (one module per algorithm)
   meet_in_the_middle.py   # extra comparison: Horowitz–Sahni, Θ(2^(n/2))
   fptas.py                # extra comparison: (1-ε)-approximation
   grasp.py                # bonus: GRASP metaheuristic
+common.py                 # shared helpers: save_csv, measure (median time), run_dp, fptas_10
 instances.py              # synthetic generators (uncorrelated / weakly / strongly correlated)
 real_instances.py         # real, anonymized instances built from real_data/*.csv
 real_data/                # anonymized module/topic data from an adaptive-learning platform
 experiment.py             # main experiments: test instance + 9 experiment blocks
 experiment_validation.py  # checks our algorithms against OR-Tools, SciPy and NumPy
+experiment_real.py        # experiments on the real (anonymized) platform instances
+experiment_grasp.py       # GRASP experiments (adapted from MAS-Cloud+)
 tests/                    # unit tests that pin the report's worked example (6 modules, T = 10)
 requirements.txt          # matplotlib (+ ortools, scipy, numpy only for the validation)
 results/                  # CSVs, plots (PNG) and the full output of one run
-report/                   # the paper (English, IEEE-style): report.pdf (final), report.tex + sections/ (LaTeX source),
-                          # relatorio-final-atualizado.docx/.tex = Portuguese reading version of the report,
-                          # figures/, make_tables.py (regenerates the tables from results/*.csv)
+report/                   # final-report-en.pdf/.docx = THE SUBMITTED REPORT (12 pages, English, ABNT format),
+                          # report.pdf + report.tex + sections/ = extended version with the full proofs (not the
+                          # submission, longer than 12 pages), relatorio-final-atualizado.* = Portuguese reading
+                          # version, figures/, make_tables.py (regenerates the tables from results/*.csv)
 ```
 
 ## How to run
@@ -34,6 +38,7 @@ report/                   # the paper (English, IEEE-style): report.pdf (final),
 - Python 3.10 or newer (developed with 3.12)
 - `experiment.py` only needs **matplotlib** (for the plots)
 - `experiment_validation.py` also needs **ortools**, **scipy** and **numpy**
+- `experiment_real.py` and `experiment_grasp.py` only need what `experiment.py` needs
 
 ### 2. Set up a virtual environment (recommended)
 Run these from the project root (the folder containing this README):
@@ -93,7 +98,14 @@ python experiment_validation.py --only sorting pearson
 
 Output: `results/validation_*.csv`.
 
-### 5. Update the report
+### 5. Real data and GRASP — `experiment_real.py`, `experiment_grasp.py`
+```bash
+python experiment_real.py         # real GuIA instances (--only profile / algorithms / gap / pseudopoly / sweep)
+python experiment_grasp.py        # GRASP (--only correctness / quality / real / adversarial)
+```
+Output: `results/real_*.csv` and `results/grasp_*.csv`. All four scripts share `common.py`.
+
+### 6. Update the extended report (`report/report.tex`)
 After re-running the experiments, refresh the LaTeX tables and rebuild the PDF:
 ```bash
 python report/make_tables.py      # rewrites report/sections/tab_*.tex from results/*.csv

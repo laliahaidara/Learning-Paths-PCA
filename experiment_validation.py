@@ -8,8 +8,6 @@ Needs ortools, scipy and numpy. Output: results/validation_*.csv.
 """
 
 import argparse
-import csv
-import os
 import random
 import statistics
 import time
@@ -34,6 +32,7 @@ from algorithms import (
     meet_in_the_middle,
 )
 from algorithms.sorting import sort_by_ratio
+from common import measure, save_csv
 from instances import FAMILIES, generate_instance
 from real_instances import (
     SCORE_DEFINITIONS,
@@ -42,22 +41,13 @@ from real_instances import (
     real_topic_instance,
 )
 
-OUTPUT_DIR = "results"
-
-
-def save_csv(name, rows):
-    """Write a list of dict rows to results/<name> (header = keys of the first row)."""
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    with open(os.path.join(OUTPUT_DIR, name), "w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-
 
 def ortools_optimum(modules, budget):
     """Optimum score according to Google OR-Tools' knapsack solver (the oracle)."""
     if not modules:
         return 0
+    # OR-Tools offers two exact solvers: its branch and bound is fine up to ~40 items, and its
+    # dynamic-programming solver is used beyond that, where B&B would be too slow.
     kind = (
         knapsack_solver.SolverType.KNAPSACK_MULTIDIMENSION_BRANCH_AND_BOUND_SOLVER
         if len(modules) <= 40
@@ -72,6 +62,8 @@ def milp_optimum(modules, budget):
     """Optimum score according to SciPy/HiGHS, solving the knapsack as a MILP (second oracle)."""
     if not modules:
         return 0
+    # One binary variable x_i per module; maximize sum(score_i * x_i) subject to
+    # sum(time_i * x_i) <= budget. HiGHS minimizes, hence the negative objective c = -values.
     values = np.array([m.score for m in modules], dtype=float)
     weights = np.array([[m.time for m in modules]], dtype=float)
     result = milp(
@@ -79,11 +71,11 @@ def milp_optimum(modules, budget):
         constraints=LinearConstraint(weights, ub=budget),
         integrality=np.ones(len(modules)),
         bounds=Bounds(0, 1),
-        options={"mip_rel_gap": 0.0},
+        options={"mip_rel_gap": 0.0},  # a gap of 0 demands a proven optimum, not an approximation
     )
     if result.x is None:
         raise RuntimeError(f"milp failed: {result.message}")
-    chosen = [i for i, x in enumerate(result.x) if x > 0.5]
+    chosen = [i for i, x in enumerate(result.x) if x > 0.5]  # round the 0/1 solution safely
     used, score = evaluate(modules, chosen)
     assert used <= budget, "milp returned an infeasible selection"
     return score
@@ -137,6 +129,9 @@ def real_topic_instances():
             yield modules, budget
 
 
+# Which hand-written exact algorithms run on which instances: DFS, B&B and MITM are too slow
+# for n >= 50, so the large and topic-level instances only run the DP variants (and B&B for
+# the 78 topics, which finishes there).
 SMALL_EXACT = {
     "DFS": exhaustive_dfs,
     "DP (memoizada)": dp_memoized,
@@ -162,15 +157,19 @@ def exp_optimum():
     ]
     rows = []
     for label, instances, extra in sets:
+        # Counters per instance set: total, disagreements between the two oracles, infeasible DP
+        # selections, and how many instances each algorithm gets wrong.
         total = oracle_disagree = infeasible = 0
         mismatches = {name: 0 for name in ["DP (tabela)"] + list(extra)}
         worst = 0
         for modules, budget in instances:
             total += 1
-            reference = ortools_optimum(modules, budget)
+            reference = ortools_optimum(modules, budget)  # first oracle
+            # Second, independent oracle: if the two disagree, neither is trusted for this instance.
             if milp_optimum(modules, budget) != reference:
                 oracle_disagree += 1
             table = dp_table(modules, budget)[0]
+            # The reconstructed path of the DP table must fit in the budget and add up to its value.
             used, score = evaluate(modules, table.indices)
             if used > budget or score != table.value:
                 infeasible += 1
@@ -179,7 +178,7 @@ def exp_optimum():
                 {name: algorithm(modules, budget).value for name, algorithm in extra.items()}
             )
             for name, value in results.items():
-                if value != reference:
+                if value != reference:  # any difference from the oracle is a divergence
                     mismatches[name] += 1
                     worst = max(worst, abs(value - reference))
         row = {
@@ -221,6 +220,7 @@ def exp_guarantees():
         opt = ortools_optimum(modules, budget)
         g, gi = greedy(modules, budget).value, greedy_with_best_item(modules, budget).value
         f = fptas(modules, budget, 0.1).value
+        # Each comparison is a bool, so += counts violations (True adds 1).
         violations["guloso > ótimo"] += g > opt
         violations["guloso+item < ótimo/2"] += 2 * gi < opt or gi > opt
         violations["FPTAS(0,1) < 0,9·ótimo"] += f < 0.9 * opt
@@ -234,7 +234,7 @@ def exp_guarantees():
         total += 1
         opt = ortools_optimum(modules, budget)
         value = grasp(modules, budget).value
-        assert value <= opt, "GRASP above the library optimum"
+        assert value <= opt, "GRASP above the library optimum"  # impossible unless a bug
         hits += value == opt
         gaps.append(0.0 if opt == 0 else 100 * (opt - value) / opt)
     summary = [
@@ -258,7 +258,8 @@ def exp_sorting():
     sources += [(real_topic_instance(score=s), 0) for s in TOPIC_SCORE_DEFINITIONS]
     for modules, _ in sources:
         total += 1
-        mine = sort_by_ratio(modules, [0])
+        mine = sort_by_ratio(modules, [0])  # [0] is a throw-away comparison counter
+        # Fraction keys compare ratios exactly; reverse=True with a stable sort keeps tie order.
         reference = sorted(
             range(len(modules)),
             key=lambda i: Fraction(modules[i].score, modules[i].time),
@@ -280,7 +281,7 @@ def exp_pearson():
     for level, score, modules in instances:
         xs = [m.time for m in modules]
         ys = [m.score for m in modules]
-        own = statistics.correlation(xs, ys)
+        own = statistics.correlation(xs, ys)  # the implementation used in the report
         with_numpy = float(np.corrcoef(xs, ys)[0, 1])
         result = stats.pearsonr(xs, ys)
         low, high = result.confidence_interval(0.95)
@@ -305,25 +306,15 @@ def exp_pearson():
     save_csv("validation_pearson.csv", rows)
 
 
-def measure(function, *args, repetitions=3):
-    """Median wall-clock time (s) of ``function(*args)`` over ``repetitions`` runs."""
-    samples = []
-    for _ in range(repetitions):
-        start = time.perf_counter()
-        function(*args)
-        samples.append(time.perf_counter() - start)
-    return statistics.median(samples)
-
-
 def exp_runtime():
     """Block ``runtime``: pure-Python DP against OR-Tools (C++) and SciPy/HiGHS."""
     print("== Runtime: DP in pure Python vs OR-Tools (C++) vs SciPy/HiGHS")
     rows = []
     for n in (50, 100, 200, 400, 600):
         modules, budget = generate_instance(n, "weakly_correlated", 0.5, 7000 + n)
-        t_dp = measure(lambda: dp_table(modules, budget))
-        t_or = measure(ortools_optimum, modules, budget)
-        t_milp = measure(milp_optimum, modules, budget)
+        t_dp, _ = measure(dp_table, modules, budget)
+        t_or, _ = measure(ortools_optimum, modules, budget)
+        t_milp, _ = measure(milp_optimum, modules, budget)
         rows.append(
             {
                 "n": n,
@@ -363,7 +354,8 @@ def exp_bnb(limit_seconds=20):
             seed = 7000 + 13 * n + k
             modules, budget = generate_instance(n, "strongly_correlated", 0.5, seed)
             reference = ortools_optimum(modules, budget)
-            t_dp = measure(lambda: dp_table(modules, budget), repetitions=1)
+            t_dp, _ = measure(dp_table, modules, budget, repetitions=1)
+            # B&B runs in a child process so it can be killed when it exceeds the time limit.
             queue = multiprocessing.Queue()
             process = multiprocessing.Process(target=_bnb_worker, args=(n, seed, queue))
             process.start()
@@ -393,6 +385,7 @@ def exp_bnb(limit_seconds=20):
     save_csv("validation_bnb.csv", rows)
 
 
+# Block name -> function; ``--only`` picks from these keys.
 BLOCKS = {
     "optimum": exp_optimum,
     "guarantees": exp_guarantees,

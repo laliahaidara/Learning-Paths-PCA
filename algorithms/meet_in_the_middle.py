@@ -1,4 +1,4 @@
-"""Meet in the middle (Horowitz-Sahni): O(2^(n/2)) time, optimal.
+"""Meet in the middle (Horowitz and Sahni, 1974): O(2^(n/2)) time, optimal.
 
 Split the modules into two halves A and B, list the feasible subsets of each
 half sorted by time, then pair them with two pointers: for each subset of A,

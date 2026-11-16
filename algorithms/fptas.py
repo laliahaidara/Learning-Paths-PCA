@@ -1,5 +1,8 @@
 """FPTAS: a (1 - epsilon) approximation in O(n^3 / epsilon) time.
 
+Scaling-and-rounding scheme in the style of Ibarra and Kim (1975), implemented here
+from the standard textbook description.
+
 Idea: the exact DP is pseudo-polynomial in the *time* budget. Here the roles
 are swapped: scores are scaled down (rounded) so that their sum is small, and
 the DP is run over scores, storing the minimum time needed to reach each

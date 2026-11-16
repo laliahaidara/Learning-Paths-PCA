@@ -10,7 +10,6 @@ PNG plots to results/.
 """
 
 import argparse
-import csv
 import os
 import random
 import statistics
@@ -37,21 +36,12 @@ from algorithms import (  # noqa: E402
     meet_in_the_middle,
     fptas,
 )
+from common import OUTPUT_DIR, fptas_10, measure, run_dp, save_csv  # noqa: E402
 from instances import FAMILIES, generate_instance  # noqa: E402
 
-OUTPUT_DIR = "results"
 
-
-def run_dp(modules, budget):
-    """Run the table DP and keep only its Result (the DP matrix is dropped)."""
-    return dp_table(modules, budget)[0]
-
-
-def fptas_10(modules, budget):
-    """FPTAS with epsilon = 0.1, the setting used in the report."""
-    return fptas(modules, budget, 0.1)
-
-
+# Every algorithm that must return the true optimum; the experiments loop over this
+# dictionary, so adding an exact algorithm here includes it in all the checks.
 EXACT = {
     "DFS": exhaustive_dfs,
     "DP": run_dp,
@@ -60,25 +50,6 @@ EXACT = {
     "B&B": branch_and_bound,
     "MITM": meet_in_the_middle,
 }
-
-
-def measure(algorithm, modules, budget, repetitions=3):
-    """Median wall-clock time (s) over ``repetitions`` runs, plus the last Result."""
-    times, result = [], None
-    for _ in range(repetitions):
-        start = time.perf_counter()
-        result = algorithm(modules, budget)
-        times.append(time.perf_counter() - start)
-    return statistics.median(times), result
-
-
-def save_csv(name, rows):
-    """Write a list of dict rows to results/<name> (header = keys of the first row)."""
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    with open(os.path.join(OUTPUT_DIR, name), "w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def save_figure(name):
@@ -120,16 +91,17 @@ def exp_demo():
     operations / chosen modules, the greedy gap, and the adversarial instance
     where plain greedy is almost 100% off the optimum.
     """
-    modules, T = test_instance()
+    modules, T = test_instance()  # same numbers as the worked example in the report
     print("\n=== TEST INSTANCE (T = %d h) ===" % T)
     for i, m in enumerate(modules, 1):
         print(f"{i}. {m.name:<20} time={m.time}  score={m.score}  ratio={m.score / m.time:.1f}")
-    dp_result, D = dp_table(modules, T)
+    dp_result, D = dp_table(modules, T)  # D[i][t] = best score with the first i modules and t hours
     print("\nDP table (rows i = modules considered, columns t = 0..T):")
     print("i\\t " + " ".join(f"{t:>3}" for t in range(T + 1)))
     for i, row in enumerate(D):
         print(f"{i:>3} " + " ".join(f"{x:>3}" for x in row))
     print("\nResults:")
+    # The DP vector only returns the value (no path), hence the "no reconstruction" label below.
     algorithms = list(EXACT.values()) + [greedy, greedy_with_best_item, fptas_10]
     for algorithm in algorithms:
         r = algorithm(modules, T)
@@ -142,6 +114,7 @@ def exp_demo():
     optimum, g = dp_result.value, greedy(modules, T).value
     print(f"\nGreedy gap on this instance: {gap(optimum, g):.1%} ({g} versus {optimum})")
 
+    # Greedy ranks by ratio, takes the tiny module first and then cannot fit the big one.
     adversarial = [LearningModule("short", 1, 2), LearningModule("long", 1000, 1000)]
     print(
         "\nAdversarial instance (T = 1000): short = 1h/2 pts (ratio 2.0), "
@@ -157,7 +130,7 @@ def edge_cases():
 
     Empty list, zero budget, nothing fits, everything fits, and ties.
     """
-    cases = [
+    cases = [  # (modules, budget) pairs chosen to break naive implementations
         ([], 5),
         ([LearningModule("a", 3, 5)], 0),
         ([LearningModule("a", 6, 9), LearningModule("b", 7, 9)], 5),
@@ -178,7 +151,7 @@ def exp_correctness(count, seed=2024):
     greedy (<= OPT, >= OPT/2) and FPTAS (>= 0.9 OPT) guarantees.
     """
     edge_cases()
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # fixed seed: a failure can always be reproduced
     failures = []
     for k in range(count):
         n = rng.randint(0, 16)
@@ -189,15 +162,18 @@ def exp_correctness(count, seed=2024):
             rng.randrange(10**9),
             rng.choice([5, 20]),
         )
-        reference = exhaustive_dfs(modules, T).value
+        reference = exhaustive_dfs(modules, T).value  # brute force is the oracle (n <= 16)
         for name, algorithm in EXACT.items():
             r = algorithm(modules, T)
             if r.value != reference:
                 failures.append((k, name, "value", r.value, reference))
+            # Re-evaluate the chosen set from scratch: it must fit and match the reported score.
+            # (The DP vector keeps no path, so it is skipped.)
             if r.indices or (r.value == 0 and name != "DP-vector"):
                 used, score = evaluate(modules, r.indices)
                 if used > T or score != r.value:
                     failures.append((k, name, "infeasible/inconsistent solution", used, score))
+        # Guarantees: greedy <= OPT; greedy+item >= OPT/2; FPTAS(0.1) within 10% of OPT.
         g, gi, f = (
             greedy(modules, T).value,
             greedy_with_best_item(modules, T).value,
@@ -225,6 +201,8 @@ def exp_exponential_time(sizes, average_instances=5):
     """
     rows = []
     for n in sizes:
+        # Worst case for the DFS: everything fits, so nothing is pruned (a single instance is
+        # enough because DFS cost does not depend on the data). The average case uses several seeds.
         scenarios = {
             "worst case (T=100%)": [generate_instance(n, "uncorrelated", 1.0, n)],
             "average case (T=50%)": [
@@ -236,6 +214,7 @@ def exp_exponential_time(sizes, average_instances=5):
             for name in ("DFS", "B&B", "MITM", "DP"):
                 times, ops = [], []
                 for modules, T in instances:
+                    # Large n makes the DFS slow, so it is timed once instead of three times.
                     t, r = measure(EXACT[name], modules, T, repetitions=3 if n <= 18 else 1)
                     times.append(t)
                     ops.append(r.operations)
@@ -260,7 +239,7 @@ def exp_exponential_time(sizes, average_instances=5):
                 if r["scenario"] == scenario and r["algorithm"] == name
             ]
             ax.plot(*zip(*points), marker="o", label=name)
-        if scenario.startswith("worst"):
+        if scenario.startswith("worst"):  # reference curve: the DFS visits at most 2^(n+1) nodes
             ax.plot(sizes, [2 ** (n + 1) for n in sizes], "k--", label="2^(n+1)")
         ax.set_yscale("log")
         ax.set_xlabel("n (modules)")
@@ -340,8 +319,9 @@ def exp_quality(ns, count, ratios=(0.1, 0.3, 0.5, 0.7), ref_n=15):
             for ratio in ratios:
                 gaps_g, gaps_gi = [], []
                 for s in range(count):
+                    # A different seed per (n, ratio, repetition), reproducible across runs.
                     modules, T = generate_instance(n, family, ratio, 31 * s + int(100 * ratio) + n)
-                    optimum = dp_vector(modules, T).value
+                    optimum = dp_vector(modules, T).value  # exact reference for the gap
                     gaps_g.append(gap(optimum, greedy(modules, T).value))
                     gaps_gi.append(gap(optimum, greedy_with_best_item(modules, T).value))
                 rows.append(
@@ -409,6 +389,8 @@ def exp_pseudopolynomial(n, factors):
     base, T0 = generate_instance(n, "uncorrelated", 0.5, 99)
     rows = []
     for factor in factors:
+        # Scaling every time and T by the same factor keeps the optimum identical but makes
+        # the table T times wider: only the DP (and B&B/MITM through T) feel it.
         modules = [LearningModule(m.name, m.time * factor, m.score) for m in base]
         T = T0 * factor
         for name, algorithm in {
@@ -501,7 +483,7 @@ def exp_families(ns, count, max_time=1000):
 def exp_fptas(n, epsilons):
     """Block ``fptas``: quality and cost of the FPTAS for several epsilons against the exact DP."""
     modules, T = generate_instance(n, "strongly_correlated", 0.5, 5)
-    optimum = run_dp(modules, T)
+    optimum = run_dp(modules, T)  # the FPTAS is judged against the exact value
     rows = [
         {
             "algorithm": "exact DP",
@@ -534,6 +516,7 @@ def exp_graph():
     """Block ``graph``: the paper's DFS on a complete DAG generates exactly 2^(n-1) paths."""
     rows = []
     for n in range(4, 17, 2):
+        # Unit times and a huge budget: no pruning, so the DFS must list every path.
         _, _, paths = dfs_paths(complete_dag(n), [1] * n, [1] * n, 0, 10**6)
         rows.append({"n": n, "paths": paths, "2^(n-1)": 2 ** (n - 1)})
         print(f"  n={n:<3} paths generated={paths:<7} 2^(n-1)={2 ** (n - 1)}")
@@ -554,7 +537,7 @@ def main():
         help="blocks: demo correctness time scale quality pseudo families fptas graph",
     )
     args = parser.parse_args()
-    q = args.quick
+    q = args.quick  # --quick shrinks sizes and repetitions (about 5 s instead of minutes)
     blocks = {
         "demo": exp_demo,
         "correctness": lambda: exp_correctness(300 if q else 1200),
